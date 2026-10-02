@@ -20,7 +20,9 @@
 
 from __future__ import absolute_import
 
-from qtpy import QtWidgets
+# QtCore used to arrive via the pyqtgraph star imports below; pyqtgraph 0.12+
+# no longer re-exports it, so import it explicitly.
+from qtpy import QtWidgets, QtCore
 from pyqtgraph.graphicsItems.GraphicsWidget import GraphicsWidget
 from pyqtgraph.graphicsItems.ViewBox import *
 from pyqtgraph.graphicsItems.GradientEditorItem import *

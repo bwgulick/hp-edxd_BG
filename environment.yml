@@ -1,0 +1,86 @@
+# Conda environment for the hp-edxd suite (hpMCA, aEDXD, ...).
+#
+# UNVERIFIED. This file was reconstructed from the README's prose and from a
+# scan of every third-party import under hpm/, utilities/ and mypyeqt/. It has
+# not been solved or installed by anyone yet. Treat a solver failure as
+# expected work, not as a bug in the code -- and once it does solve, replace
+# the loose entries below with the versions that actually worked.
+#
+#   conda env create -f environment.yml
+#   conda activate hp-edxd
+#   python hpMCA.py
+#
+# Why the pins are what they are
+# ------------------------------
+# The three hard pins come from the README and are compatibility statements,
+# not preferences:
+#
+#   pyqt 5.9.2       "Some compatibility issues with newer versions"
+#   pyqtgraph 0.11.0 "Not compatible with 0.12.0+"  -- this one really bites;
+#                    0.12 moved GraphicsWindow/GraphicsLayoutWidget and the
+#                    plot item API that hpm/widgets/plot_widgets depends on.
+#   python 3.7       what the suite was developed and released against.
+#
+# One extra ceiling worth knowing about if anyone tries to modernise this:
+# hpm/models/calcMCA.py and hpm/models/multipleDatasetModel.py both do
+# "import imp" at module scope. That module was removed in Python 3.12, so the
+# suite cannot start there. Neither file actually uses it -- they are dead
+# imports -- so the ceiling is two deletable lines, not a real constraint.
+#
+# Everything unpinned below is unpinned because no known-good version exists to
+# copy -- the README never listed them. Pin them as soon as one install works.
+#
+# The README lists five packages. Six more are imported and were undocumented:
+# numpy, scipy, natsort, qtpy, pillow and scikit-image. An environment built
+# from the README alone will fail at import.
+#
+# hpMCA also imports the sibling axd/ package (utilities/PeriodicTable.py,
+# hpm/models/AmorphousAnalysisModel.py), so a deployment needs the repo, not
+# just the hpm/ directory.
+
+name: hp-edxd
+
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.7
+
+  # --- Qt stack. Pinned; see above. -----------------------------------------
+  - pyqt=5.9.2
+  - pyqtgraph=0.11.0
+  # qtpy is imported by hpm/models/MaskModel.py, hpm/models/util/NewFileWatcher.py
+  # and hpm/widgets/plot_widgets/HistogramLUTItem.py. Undocumented in the README.
+  - qtpy
+
+  # --- Numerics. Undocumented in the README; numpy is in 53 files. ----------
+  - numpy
+  - scipy
+
+  # --- Imaging, used by the mask/image widgets. Undocumented. ---------------
+  - pillow          # imported as PIL, in hpm/models/MaskModel.py
+  - scikit-image    # imported as skimage, MaskModel.py and ImgWidget.py
+
+  # --- Natural sort ordering for multi-spectra folders. Undocumented. -------
+  - natsort
+
+  - pip
+
+  - pip:
+      # EPICS Channel Access. Required at import time, not lazily: hpmca_controller
+      # does "from epics.clibs import *" at module scope, so hpMCA will not reach
+      # its first window without this.
+      #
+      # At the beamline, point pyepics at the site CA library if it does not find
+      # one on its own:
+      #   export PYEPICS_LIBCA=/usr/local/epics/base-7.0.4/lib/linux-x86_64/libca.so
+      # Check what it resolved with:  python -c "import epics; print(epics.ca.find_libca())"
+      - pyepics==3.4.0
+
+      # Thermal equation-of-state machinery behind the JCPDS phase overlays and
+      # lattice refinement (hpm/models/birch_murnaghan_thermal.py, jcpds.py).
+      - burnman==0.9.0
+
+      # CIF reading, imported as CifFile by hpm/models/cif.py.
+      - PyCifRW==4.4.1

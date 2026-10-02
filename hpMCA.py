@@ -14,7 +14,11 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import sys
+
 from hpm import main
 
-main() 
+# main() parses sys.argv itself (see hpm/__init__.py). Propagate the Qt exit
+# code so a launcher can tell a clean quit from a crash.
+sys.exit(main())
 

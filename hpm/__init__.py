@@ -22,7 +22,9 @@ __version__ = "0.7.3"
 
 
 
+import argparse
 import os
+import sys
 
 import PyQt5
 import pyqtgraph as pg
@@ -60,8 +62,78 @@ def make_dpi_aware():
           import ctypes
           ctypes.windll.shcore.SetProcessDpiAwareness(True)
 
-def main():
-  
+def _build_arg_parser():
+    """Command-line options for launching hpMCA preloaded.
+
+    Added so hpMCA can be started from an external controls GUI (Bluesky/BITS at
+    16-BM-B) with something already open, instead of a blank window the operator
+    then has to drive by hand. Bare ``python hpMCA.py`` with no options behaves
+    exactly as it always has.
+
+    Each option maps onto a controller call the author already used in the
+    autoload/debug block below -- no new API.
+    """
+    parser = argparse.ArgumentParser(
+        prog='hpMCA',
+        description='hpMCA - energy dispersive XRD spectrum viewer and analysis.')
+    parser.add_argument(
+        '--detector', metavar='PV', default=None,
+        help='EPICS mca record name to open in live view, e.g. 16bmbDante:mca1. '
+             'hpMCA writes calibration, ROIs and acquisition commands to this '
+             'record, so do not point it at a record another client owns.')
+    source = parser.add_mutually_exclusive_group()
+    source.add_argument(
+        '--file', metavar='PATH', default=None,
+        help='spectrum file to open in file view.')
+    source.add_argument(
+        '--folder', metavar='PATH', default=None,
+        help='folder of spectra to open in the multi-spectra browser.')
+    parser.add_argument(
+        '--calibration', metavar='PATH', default=None,
+        help='calibration file to load into whichever mca ends up in the foreground.')
+    parser.add_argument(
+        '--version', action='version', version='hpMCA ' + __version__)
+    return parser
+
+
+def _autoload(controller, options):
+    """Apply the parsed command-line options to a constructed controller.
+
+    Order matters: the detector is opened first, then a file or folder, so that
+    giving both leaves the file data in the foreground (the more specific
+    request wins). The calibration is applied last, to whatever is foreground.
+
+    A bad path is reported on stderr and skipped rather than raised -- the GUI
+    is already up by this point, and a launcher passing a stale path should get
+    a usable window plus a complaint, not a traceback and no window.
+    """
+    if options.detector:
+        controller.openDetector(detector=options.detector)
+
+    if options.file:
+        if os.path.isfile(options.file):
+            controller.file_save_controller.openFile(filename=options.file)
+        else:
+            print('hpMCA: --file not found: %s' % options.file, file=sys.stderr)
+
+    if options.folder:
+        if os.path.isdir(options.folder):
+            controller.file_save_controller.openFolder(foldername=options.folder)
+        else:
+            print('hpMCA: --folder not found: %s' % options.folder, file=sys.stderr)
+
+    if options.calibration:
+        if os.path.isfile(options.calibration):
+            controller.load_calibration(filename=options.calibration)
+        else:
+            print('hpMCA: --calibration not found: %s' % options.calibration,
+                  file=sys.stderr)
+
+
+def main(argv=None):
+
+    options = _build_arg_parser().parse_args(sys.argv[1:] if argv is None else argv)
+
     make_dpi_aware()
     if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
       PyQt5.QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
@@ -110,9 +182,7 @@ def main():
     #controller.phase_controller.show_view()
     #controller.phase_controller.add_btn_click_callback(filenames=['JCPDS/Oxides/mgo.jcpds'])
 
-    
-
-    
+    _autoload(controller, options)
 
     return app.exec_()
 
